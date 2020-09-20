@@ -206,7 +206,7 @@ void AUDIO_CheckQueue() {
     }
 }
 
-static int AUDIO_VoiceAvailable() {
+int AUDIO_VoiceAvailable() {
 #if defined BUILDTYPE_DEV
 #if HAS_AUDIO_UART
     if (!Transmitter.audio_uart)
