@@ -30,9 +30,7 @@
 const char SECTION_VOICE_GLOBAL[] = "global";
 const char SECTION_VOICE_CUSTOM[] = "custom";
 
-typedef struct { u16 id; voice_parse_mode mode; } ini_parse_data;
-
-u16 custom_linenum;
+typedef struct { u16 id; voice_parse_mode mode; u16 custom_linenum } ini_parse_data;
 
 static int ini_handler(void* user, const char* section, const char* name, const char* value)
 {
@@ -56,14 +54,14 @@ static int ini_handler(void* user, const char* section, const char* name, const 
     if (userdata->mode == VOICE_PARSE_MATCH_CUSTOM_LINENUM) {
         // match the line number of a custom alert to simulate old behaviour of forming an unordered array from all entries
         if (MATCH_SECTION(SECTION_VOICE_CUSTOM)) {
-            if (custom_linenum == req_id) {
+            if (userdata->custom_linenum == req_id) {
                 // old behaviour didn't bother to check the entry had duration set, so don't replicate that here
                 current_voice_mapping.id = id;
                 current_voice_mapping.duration = duration;
                 if (HAS_MUSIC_CONFIG)
                     strlcpy(tempstring, value, k+1);  // return a requested mp3 label passed at *user to tempstring        
             }
-            custom_linenum++;
+            userdata->custom_linenum++;
         }
         return 1;
     } else {
@@ -109,7 +107,7 @@ const char* CONFIG_VoiceParse_WithMode(unsigned id, voice_parse_mode mode)
     char filename[] = "media/voice.ini";
     #endif
 
-    ini_parse_data userdata = { .id = id, .mode = mode };
+    ini_parse_data userdata = { .id = id, .mode = mode, .custom_linenum = 200 };
     if (id == MAX_VOICEMAP_ENTRIES) {  // initial parse of voice.ini
         userdata.mode = VOICE_PARSE_MATCH_ID;  // VOICE_PARSE_MATCH_CUSTOM_LINENUM not supported for initial parse
         if (CONFIG_IniParse(filename, ini_handler, &userdata))
@@ -123,7 +121,6 @@ const char* CONFIG_VoiceParse_WithMode(unsigned id, voice_parse_mode mode)
         // reset vars
         current_voice_mapping.id = 0;
         current_voice_mapping.duration = 0;
-        custom_linenum = 200;  // reset this (not neat but works)
         if (CONFIG_IniParse(filename, ini_handler, &userdata)) {
             // ini handler will return tempstring with label of id and fill current_voice_mapping
         }
