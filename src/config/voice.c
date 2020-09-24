@@ -78,8 +78,9 @@ static int ini_handler(void* user, const char* section, const char* name, const 
                     Transmitter.voice_ini_entries = VOICE_INI_GLOBAL_ONLY;
                 }
                 if (MATCH_SECTION(SECTION_VOICE_CUSTOM)) {
-                    // Initial count of custom voicemap entries
-                    Transmitter.voice_ini_entries++;
+                    // Store max entry number instead of count to ensure all are reachable in config
+                    if ((id - CUSTOM_ALARM_ID + 1) > Transmitter.voice_ini_entries)
+                        Transmitter.voice_ini_entries = id - CUSTOM_ALARM_ID + 1;
                     return 1;
                 }
                 return 0;
@@ -121,6 +122,7 @@ const char* CONFIG_VoiceParse_WithMode(unsigned id, voice_parse_mode mode)
         // reset vars
         current_voice_mapping.id = 0;
         current_voice_mapping.duration = 0;
+        sprintf(tempstring, "%d", id);
         if (CONFIG_IniParse(filename, ini_handler, &userdata)) {
             // ini handler will return tempstring with label of id and fill current_voice_mapping
         }
