@@ -244,7 +244,7 @@ static const char * const VOICE_TELEMALARM[TELEM_NUM_ALARMS] =
     { "telemalarm1", "telemalarm2", "telemalarm3", "telemalarm4", "telemalarm5", "telemalarm6" };
 static const char * const VOICE_TIMER[NUM_TIMERS] =
     { "timer1", "timer2", "timer3", "timer4" };
-
+static const char VOICE_MP3ID_PREFIX[] = "+";
 #endif
 
 
@@ -1076,10 +1076,18 @@ int assign_int(void* ptr, const struct struct_map *map, int map_size)
     char src_name[20];
 
     if (MATCH_SECTION(SECTION_VOICE)) {
+        u8 use_mp3_id = 0;  // New behaviour: IDs in model files should match those from mp3/ini files.
+        if (!strncmp(value, VOICE_MP3ID_PREFIX, strlen(VOICE_MP3ID_PREFIX))) {  // Require mp3 ID prefix ("+") to handle correct loading of all old IDs still
+            use_mp3_id = 1;
+            value += strlen(VOICE_MP3ID_PREFIX);  // Skip over the mp3 ID prefix before conversion to int
+        }
         u16 val = atoi(value);
-        CONFIG_VoiceParse_WithMode(val, VOICE_PARSE_MATCH_CUSTOM_LINENUM);
-        val = current_voice_mapping.id;
-        if (current_voice_mapping.duration == 0 || val < CUSTOM_ALARM_ID) {
+        if (!use_mp3_id) {
+            // parsing with VOICE_PARSE_MATCH_CUSTOM_LINENUM converts to what the old voice_map system would provide
+            CONFIG_VoiceParse_WithMode(val, VOICE_PARSE_MATCH_CUSTOM_LINENUM);
+            val = current_voice_mapping.id;
+        }
+        if (val < CUSTOM_ALARM_ID) {  // don't check duration so we don't accidentally remove information when loading old models with bad voice.ini
             printf("%s: Music %s not found in voice.ini or below ID %d\n", section, value, CUSTOM_ALARM_ID);
             return 0;
         }
@@ -1435,32 +1443,33 @@ u8 CONFIG_WriteModel(u8 model_num) {
         }
     }
 #if HAS_EXTENDED_AUDIO
+    // voice config data is now written with an mp3 ID prefix ("+") to use a different loading method
     fprintf(fh, "[%s]\n", SECTION_VOICE);
     for (idx = 0; idx < NUM_SWITCHES; idx++) {
         if (m->voice.switches[idx].music)
-            fprintf(fh, "%s=%d\n", INPUT_SourceName(file,idx + INP_HAS_CALIBRATION + 1), m->voice.switches[idx].music);
+            fprintf(fh, "%s=%s%d\n", INPUT_SourceName(file, idx + INP_HAS_CALIBRATION + 1), VOICE_MP3ID_PREFIX, m->voice.switches[idx].music);
     }
 #if NUM_AUX_KNOBS
     for (idx = 0; idx < NUM_AUX_KNOBS * 2; idx++) {
         if (m->voice.aux[idx].music) {
             if (idx % 2)
-                fprintf(fh, "%s_UP=%d\n", INPUT_SourceName(tempstring,(idx-1) / 2 + NUM_STICKS + 1), m->voice.aux[idx].music);
+                fprintf(fh, "%s_UP=%s%d\n", INPUT_SourceName(tempstring, (idx-1) / 2 + NUM_STICKS + 1), VOICE_MP3ID_PREFIX, m->voice.aux[idx].music);
             else
-                fprintf(fh, "%s_DOWN=%d\n", INPUT_SourceName(tempstring,idx / 2 + NUM_STICKS + 1), m->voice.aux[idx].music);
+                fprintf(fh, "%s_DOWN=%s%d\n", INPUT_SourceName(tempstring, idx / 2 + NUM_STICKS + 1), VOICE_MP3ID_PREFIX, m->voice.aux[idx].music);
         }
     }
 #endif
     for (idx = 0; idx < NUM_TIMERS; idx++) {
         if (m->voice.timer[idx].music)
-            fprintf(fh, "timer%d=%d\n", idx + 1, m->voice.timer[idx].music);
+            fprintf(fh, "timer%d=%s%d\n", idx + 1, VOICE_MP3ID_PREFIX, m->voice.timer[idx].music);
     }
     for (idx = 0; idx < TELEM_NUM_ALARMS; idx++) {
         if (m->voice.telemetry[idx].music)
-            fprintf(fh, "telemalarm%d=%d\n", idx + 1, m->voice.telemetry[idx].music);
+            fprintf(fh, "telemalarm%d=%s%d\n", idx + 1, VOICE_MP3ID_PREFIX, m->voice.telemetry[idx].music);
     }
     for (idx = 0; idx < (NUM_OUT_CHANNELS + NUM_VIRT_CHANNELS); idx++) {
         if (m->voice.mixer[idx].music)
-            fprintf(fh, "%s=%d\n", INPUT_SourceNameReal(tempstring, idx + NUM_INPUTS + 1), m->voice.mixer[idx].music);
+            fprintf(fh, "%s=%s%d\n", INPUT_SourceNameReal(tempstring, idx + NUM_INPUTS + 1), VOICE_MP3ID_PREFIX, m->voice.mixer[idx].music);
     }
 #endif
     CONFIG_EnableLanguage(1);
