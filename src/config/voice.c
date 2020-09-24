@@ -55,7 +55,7 @@ static int ini_handler(void* user, const char* section, const char* name, const 
         // match the line number of a custom alert to simulate old behaviour of forming an unordered array from all entries
         if (MATCH_SECTION(SECTION_VOICE_CUSTOM)) {
             if (userdata->custom_linenum == req_id) {
-                // old behaviour didn't bother to check the entry had duration set, so don't replicate that here
+                // old behaviour didn't bother to check the entry had label set, so don't replicate that here
                 current_voice_mapping.id = id;
                 current_voice_mapping.duration = duration;
                 if (HAS_MUSIC_CONFIG)
@@ -126,6 +126,8 @@ const char* CONFIG_VoiceParse_WithMode(unsigned id, voice_parse_mode mode)
         if (CONFIG_IniParse(filename, ini_handler, &userdata)) {
             // ini handler will return tempstring with label of id and fill current_voice_mapping
         }
+        if (current_voice_mapping.duration == 0)
+           strncat(tempstring, " (missing)", sizeof(tempstring) - strlen(tempstring) - 1);  // strlcat not available?
     }
     return tempstring;
 }
